@@ -17,6 +17,9 @@ const io = new Server(server);
 
 const ProductoService = require("./services/producto");
 const MensajeService = require("./services/mensajes");
+const { Mongoose } = require("mongoose");
+const MongoStore = require('connect-mongo');
+const { MONGO_URI } = require("./config/globals");
 
 app.use(express.urlencoded({extended: true}));
 app.use(express.json());
@@ -29,12 +32,16 @@ app.set('view engine', 'handlebars');
 
 app.use(
   session({
+    store: MongoStore.create({
+      mongoUrl: MONGO_URI,
+      mongoOptions: {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      }
+    }),
     secret: process.env.SECRET_KEY,
-    resave: true,
-    saveUninitialized: true,
-    cookie: {
-        maxAge: 60 * 1000
-    }
+    resave: false,
+    saveUninitialized: false,
   })
 );
 
@@ -42,30 +49,30 @@ app.use(cookieParser());
 app.use(express.json());
 
 app.post("/singup", (req, res, next) => {
-  if (!req.body.username && !req.body.password)
+  if (!req.body.username && !req.body.password){
     throw new Error("No es posible registrarse");
-  const { username } = req.body;
-  req.session[username] = username;
-  req.session.id = req.session.id ? req.session.id + 1 : 1;
-  res.cookie("isRegistered", "true").json({
-    msg: "Usuario registrado",
-    username,
-    id: req.session.id
-  });
+  } else {    
+    const { username } = req.body;
+    req.session[username] = username;
+    req.session.id = req.session.id ? req.session.id + 1 : 1  
+
+    res.redirect('/');
+  }    
 });
 
 app.post("/login", (req, res, next) => {
   if (!req.body.username && !req.body.password) throw new Error("No es posible ingresar");
   const { username } = req.body;
-  if (req.session[username]== username) {
-    res.send("Te has autenticado con éxito");
+  if (req.session[username]== username) { 
+    res.redirect('/home');    
   }else{
       res.send('No estás registrado')
   }
 });
+
 app.post("/logout", (req, res, next) => {
   req.session.destroy();
-  res.send("Has salido con èxito");
+  res.redirect('/');
 });
 
 io.on('connection', async (socket) => {
